@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Choose America",
+      "hasCanvas": false,
+      "bodyTextLen": 1769,
+      "bodyTextHash": "ceb0464a9d125a5521c93d7385ccd26bdf3d651c3f484844c48059b9b7413f0c",
+      "bodyTextPrefix": "VOICE LAYER Choose America American English, as spoken. The line",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Choose America",
+      "hasCanvas": false,
+      "bodyTextLen": 1769,
+      "bodyTextHash": "ceb0464a9d125a5521c93d7385ccd26bdf3d651c3f484844c48059b9b7413f0c",
+      "bodyTextPrefix": "VOICE LAYER Choose America American English, as spoken. The line",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}
