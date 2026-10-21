@@ -1,9 +1,9 @@
 import { i as __toESM, n as __exportAll } from "../_runtime.mjs";
-import { L as require_react, _ as useRouter, f as createRouter, g as createRootRoute, h as createFileRoute, l as Scripts, m as lazyRouteComponent, p as Outlet, u as HeadContent, v as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
-import { n as TriangleAlert } from "../_libs/lucide-react.mjs";
+import { K as require_react, _ as createFileRoute, b as useRouter, d as Scripts, f as HeadContent, g as lazyRouteComponent, h as Outlet, m as createRouter, q as require_jsx_runtime, v as createRootRoute } from "../_libs/@tanstack/react-router+[...].mjs";
+import { r as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-qOqn22d8.js
-var router_qOqn22d8_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-B_gyY0BY.js
+var router_B_gyY0BY_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var FALLBACK_MESSAGE = "An unexpected error occurred. Try reloading the page.";
@@ -297,9 +297,9 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-BQfoSLYX.css";
+var styles_default = "/assets/styles-CkqLzGZo.css";
 var APP_NAME = "Choose America";
-var Route$1 = createRootRoute({
+var Route$4 = createRootRoute({
 	head: () => ({
 		meta: [
 			{ charSet: "utf-8" },
@@ -307,10 +307,10 @@ var Route$1 = createRootRoute({
 				name: "viewport",
 				content: "width=device-width, initial-scale=1"
 			},
-			{ title: APP_NAME },
+			{ title: `${APP_NAME} (Beta)` },
 			{
 				name: "description",
-				content: "On-device American English. The line stays as spoken. Dialect is mapped, not corrected."
+				content: "Reads a regional line on this device. The line stays. Gulf Coast, Appalachian, Atlantic Coastal, Urban."
 			},
 			{
 				name: "theme-color",
@@ -328,10 +328,6 @@ var Route$1 = createRootRoute({
 				href: styles_default
 			},
 			{
-				rel: "stylesheet",
-				href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,620&family=IBM+Plex+Mono:wght@400;500&display=swap"
-			},
-			{
 				rel: "manifest",
 				href: "/__grok/manifest.webmanifest"
 			},
@@ -347,17 +343,48 @@ var Route$1 = createRootRoute({
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("head", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(HeadContent, {}) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("body", { children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PreviewHostBridge, {}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthProvider, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Outlet, {}) }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("footer", {
+				className: "mx-auto w-full max-w-5xl px-4 pb-8 sm:px-8",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "font-sans text-xs text-muted",
+					children: "Beta, October 2026. Things may change. Your data rules don't."
+				})
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Scripts, {})
 		] })]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-Bl6wXKBM.mjs");
-var rootRouteChildren = { IndexRoute: createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") }).update({
-	id: "/",
-	path: "/",
-	getParentRoute: () => Route$1
-}) };
-var routeTree = Route$1._addFileChildren(rootRouteChildren)._addFileTypes();
+var $$splitComponentImporter$3 = () => import("./routes-ZsLhPyp3.mjs");
+var Route$3 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter$3, "component") });
+var $$splitComponentImporter$2 = () => import("./america-oI7mvdc9.mjs");
+var Route$2 = createFileRoute("/america")({ component: lazyRouteComponent($$splitComponentImporter$2, "component") });
+var $$splitComponentImporter$1 = () => import("./ethos-fSmrlwix.mjs");
+var Route$1 = createFileRoute("/ethos")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
+var $$splitComponentImporter = () => import("./privacy-EQ3veh-c.mjs");
+var Route = createFileRoute("/privacy")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+var rootRouteChildren = {
+	IndexRoute: Route$3.update({
+		id: "/",
+		path: "/",
+		getParentRoute: () => Route$4
+	}),
+	AmericaRoute: Route$2.update({
+		id: "/america",
+		path: "/america",
+		getParentRoute: () => Route$4
+	}),
+	EthosRoute: Route$1.update({
+		id: "/ethos",
+		path: "/ethos",
+		getParentRoute: () => Route$4
+	}),
+	PrivacyRoute: Route.update({
+		id: "/privacy",
+		path: "/privacy",
+		getParentRoute: () => Route$4
+	})
+};
+var routeTree = Route$4._addFileChildren(rootRouteChildren)._addFileTypes();
 function getRouter() {
 	return createRouter({
 		routeTree,
@@ -365,4 +392,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_qOqn22d8_exports as t };
+export { getRouter, router_B_gyY0BY_exports as t };

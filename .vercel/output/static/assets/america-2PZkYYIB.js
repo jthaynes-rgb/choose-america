@@ -1,0 +1,1 @@
+import{t as e}from"./console-DfYOupmu.js";import{r as t}from"./index-C5YMSgx7.js";var n=t();function r(){return(0,n.jsx)(e,{})}export{r as component};

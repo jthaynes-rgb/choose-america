@@ -13,12 +13,11 @@ export type Signal = {
 
 export type Command =
   | { type: "repeat" }
-  | { type: "wipe" }
+  | { type: "drop" }
   | { type: "readback" }
-  | { type: "time" }
-  | { type: "timer"; ms: number; label: string }
   | { type: "gloss"; query: string }
-  | { type: "note"; text: string }
+  | { type: "escape" }
+  | { type: "tot" }
   | { type: "hold" };
 
 export type Interpretation = {
@@ -32,24 +31,13 @@ export type Interpretation = {
 
 const FILLER = /^(?:uh|um|hmm|mm|er|ah|huh|hm)(?:\s+(?:uh|um|hmm|mm|er|ah|huh|hm))*$/;
 
-const NUMBER_WORDS: Record<string, number> = {
-  one: 1,
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-  fifteen: 15,
-  twenty: 20,
-  thirty: 30,
-  forty: 40,
-  fifty: 50,
-  sixty: 60,
-};
+const MAILBOX = /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i;
+const PHONE = /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]\d{4}\b/;
+const PASSWORD = /\bpass(?:word|code)\b/i;
+
+export function kept(input: string): boolean {
+  return !MAILBOX.test(input) && !PHONE.test(input) && !PASSWORD.test(input);
+}
 
 export function fold(input: string): string {
   return input
@@ -107,14 +95,6 @@ export function findSignals(folded: string): Signal[] {
     }
   }
 
-  if (/\bcome with$/.test(folded) || /\bcoming with$/.test(folded)) {
-    signals.push({
-      display: "come with",
-      dialects: ["upper-midwest"],
-      gloss: "Motion verb plus with, and no object. You coming with? is complete.",
-    });
-  }
-
   return signals;
 }
 
@@ -122,8 +102,7 @@ function dialectRank(signals: Signal[]): DialectId[] {
   const score = new Map<DialectId, number>();
   for (const signal of signals) {
     for (const id of signal.dialects) {
-      const weight = id === "widespread" ? 0.25 : 1;
-      score.set(id, (score.get(id) ?? 0) + weight);
+      score.set(id, (score.get(id) ?? 0) + 1);
     }
   }
   return [...score.entries()]
@@ -131,70 +110,18 @@ function dialectRank(signals: Signal[]): DialectId[] {
     .map(([id]) => id);
 }
 
-function durationLabel(ms: number): string {
-  const total = Math.round(ms / 1000);
-  if (total < 60) return `${total} second${total === 1 ? "" : "s"}`;
-  const minutes = Math.round(total / 60);
-  if (total < 3600) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-  const hours = Math.round(total / 3600);
-  return `${hours} hour${hours === 1 ? "" : "s"}`;
-}
-
-function parseDuration(folded: string): { ms: number; label: string } | null {
-  const unit =
-    "(seconds?|secs?|minutes?|mins?|hours?|hrs?)";
-  const digit = folded.match(
-    new RegExp(
-      `(?:set (?:a |the )?timer(?: for)?|timer|give me|wake me in|in)\\s+(\\d+)\\s*${unit}`,
-    ),
-  );
-  const word = folded.match(
-    new RegExp(
-      `(?:set (?:a |the )?timer(?: for)?|timer|give me|wake me in|in)\\s+(${Object.keys(NUMBER_WORDS).join("|")})\\s*${unit}`,
-    ),
-  );
-  const hit = digit ?? word;
-  if (!hit) return null;
-  const amount = digit ? Number(hit[1]) : NUMBER_WORDS[hit[1]];
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  const unitWord = hit[2];
-  const ms = /hour|hr/.test(unitWord)
-    ? amount * 3600000
-    : /min/.test(unitWord)
-      ? amount * 60000
-      : amount * 1000;
-  if (ms > 24 * 3600000) return null;
-  return { ms, label: durationLabel(ms) };
-}
-
 function commandFor(raw: string, folded: string): Command {
+  if (!kept(raw)) return { type: "drop" };
   if (!folded || FILLER.test(folded)) return { type: "repeat" };
-  if (/\b(wipe the tape|clear the (?:tape|board|log|ledger)|dump the tape)\b/.test(folded)) {
-    return { type: "wipe" };
-  }
   if (/\b(read (?:that|it) back|say (?:that|it) again|run it back)\b/.test(folded)) {
     return { type: "readback" };
   }
-  if (
-    /\b(what time is it|what's the time|whats the time|got the time|what time you got|what time y'all got|y'all got the time|you got the time)\b/.test(
-      folded,
-    )
-  ) {
-    return { type: "time" };
-  }
-  const duration = parseDuration(folded);
-  if (duration) return { type: "timer", ms: duration.ms, label: duration.label };
-
+  if (folded === "escape" || folded === "back to the line") return { type: "escape" };
+  if (folded === "tot" || folded === "text only" || folded === "open tot") return { type: "tot" };
   const gloss =
     folded.match(/\bwhat(?:'s| is| does|s)\s+(.+?)\s+mean\b/) ??
     folded.match(/\bwhat do(?:es)?\s+(.+?)\s+mean\b/);
   if (gloss?.[1]) return { type: "gloss", query: gloss[1].trim() };
-
-  const noted = soften(raw).match(
-    /\b(?:remember|jot|write down|put down|note)\b(?:\s+(?:this|that))?\s*:?\s+(.+)$/i,
-  );
-  if (noted?.[1]?.trim()) return { type: "note", text: noted[1].trim() };
-
   return { type: "hold" };
 }
 
@@ -205,42 +132,53 @@ function intentFor(command: Command, signals: Signal[]): {
   switch (command.type) {
     case "repeat":
       return { intentLabel: "Repeat.", intentDetail: "Nothing intelligible in that take." };
-    case "wipe":
-      return { intentLabel: "Tape clear.", intentDetail: "Ledger and notes wiped on this device." };
+    case "drop":
+      return { intentLabel: "Not kept.", intentDetail: "A mailbox, a password, or a phone number is not kept." };
     case "readback":
       return {
         intentLabel: "Read the line.",
-        intentDetail: "Device voice says the same words. It will not sound like the speaker.",
-      };
-    case "time":
-      return { intentLabel: "Time.", intentDetail: "Local clock. No network." };
-    case "timer":
-      return {
-        intentLabel: "Timer.",
-        intentDetail: `${command.label}. Stays on this page.`,
+        intentDetail: "This device says the same words. They do not leave.",
       };
     case "gloss":
       return {
         intentLabel: "Gloss.",
-        intentDetail: `Look up “${command.query}”. The word stays.`,
+        intentDetail: "The word stays. The reading is local.",
       };
-    case "note":
-      return { intentLabel: "Noted.", intentDetail: "Saved on this device only." };
+    case "escape":
+      return {
+        intentLabel: "Escape.",
+        intentDetail: "Back to the line. The desk is not armed.",
+      };
+    case "tot":
+      return {
+        intentLabel: "Text only.",
+        intentDetail: "The held line is set as text. It stays on this device.",
+      };
     case "hold":
       return {
         intentLabel: "Held.",
         intentDetail:
           signals.length > 0
-            ? "No command in it. Signals are possibilities, not a rewrite."
-            : "No command in it. No regional markers. Still American English.",
+            ? "The line stays. Signals are a reading, not a rewrite."
+            : "The line stays. No regional markers in the four.",
       };
     default:
-      return { intentLabel: "Held.", intentDetail: "No command in it." };
+      return { intentLabel: "Held.", intentDetail: "The line stays." };
   }
 }
 
 export function interpret(rawInput: string): Interpretation {
   const raw = soften(rawInput);
+  if (!kept(raw)) {
+    return {
+      raw: "",
+      signals: [],
+      dialects: [],
+      command: { type: "drop" },
+      intentLabel: "Not kept.",
+      intentDetail: "A mailbox, a password, or a phone number is not kept.",
+    };
+  }
   const folded = fold(raw);
   const signals = findSignals(folded);
   const command = commandFor(raw, folded);
@@ -268,13 +206,26 @@ export function lookupGloss(query: string): string | null {
       }
     }
   }
-  if (/\bcome with\b/.test(folded) || folded === "come with") {
-    const gloss = "Motion verb plus with, and no object. You coming with? is complete.";
-    if (!best || best.len < 8) return gloss;
-  }
   return best?.gloss ?? null;
 }
 
 export function dialectLabel(id: DialectId): string {
   return DIALECT_NAME[id];
+}
+
+export function spokenReading(result: Interpretation, gloss: string | null): string {
+  if (result.command.type === "repeat") return "Repeat.";
+  if (result.command.type === "drop") return "Not kept.";
+  if (result.command.type === "readback") return result.raw;
+  if (result.command.type === "escape") return "Escape. The line stays.";
+  if (result.command.type === "tot") return result.raw || "No line yet.";
+  if (result.command.type === "gloss") {
+    return `${result.raw}. ${gloss ?? "Not in the book."}`;
+  }
+  const region = result.dialects[0] ? dialectLabel(result.dialects[0]) : "No regional markers";
+  const marks = result.signals
+    .slice(0, 3)
+    .map((signal) => `${signal.display}. ${signal.gloss}`)
+    .join(" ");
+  return marks ? `${result.raw}. ${region}. ${marks}` : `${result.raw}. ${region}.`;
 }

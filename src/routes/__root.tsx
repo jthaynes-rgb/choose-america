@@ -10,21 +10,16 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: APP_NAME },
+      { title: `${APP_NAME} (Beta)` },
       {
         name: "description",
-        content:
-          "On-device American English. The line stays as spoken. Dialect is mapped, not corrected.",
+        content: "Reads a regional line on this device. The line stays. Gulf Coast, Appalachian, Atlantic Coastal, Urban.",
       },
       { name: "theme-color", content: "#f3efe6" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,620&family=IBM+Plex+Mono:wght@400;500&display=swap",
-      },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
     ],
@@ -39,6 +34,11 @@ export const Route = createRootRoute({
         <AuthProvider>
           <Outlet />
         </AuthProvider>
+        <footer className="mx-auto w-full max-w-5xl px-4 pb-8 sm:px-8">
+          <p className="font-sans text-xs text-muted">
+            Beta, October 2026. Things may change. Your data rules don't.
+          </p>
+        </footer>
         <Scripts />
       </body>
     </html>

@@ -1,0 +1,5 @@
+# Choose America (beta)
+
+/america
+/ethos
+/privacy

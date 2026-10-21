@@ -9,12 +9,20 @@
   --color-line: #ddd4c6;
   --color-oxide: #b8431f;
   --color-oxide-ink: #fff7f2;
+  --color-gold: #7a5a0a;
   --font-sans: "Fraunces", "Iowan Old Style", Palatino, Georgia, serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-title: "Uncial Antiqua", "Fraunces", Palatino, Georgia, serif;
   --radius-sm: 0.25rem;
 }
 
 @layer base {
+  @font-face {
+    font-family: "Uncial Antiqua";
+    src: url("/fonts/UncialAntiqua-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
   html {
     color-scheme: light;
     -webkit-font-smoothing: antialiased;
@@ -42,6 +50,27 @@
   h2,
   h3 {
     text-wrap: balance;
+  }
+
+  progress.ear-load {
+    display: block;
+    width: 100%;
+    height: 0.25rem;
+    border: 0;
+    background: var(--color-line);
+    color: var(--color-oxide);
+  }
+
+  progress.ear-load::-webkit-progress-bar {
+    background: var(--color-line);
+  }
+
+  progress.ear-load::-webkit-progress-value {
+    background: var(--color-oxide);
+  }
+
+  progress.ear-load::-moz-progress-bar {
+    background: var(--color-oxide);
   }
 
   summary {

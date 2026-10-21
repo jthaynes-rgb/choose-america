@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://choose-america.grok.me/sitemap.xml
+
+# x-robots-tag noindex is host-forced. This file does not override it.
+# No sign-in pages.

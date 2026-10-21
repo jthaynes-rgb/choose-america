@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AmericaRouteImport } from './routes/america'
+import { Route as EthosRouteImport } from './routes/ethos'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AmericaRoute = AmericaRouteImport.update({
+  id: '/america',
+  path: '/america',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EthosRoute = EthosRouteImport.update({
+  id: '/ethos',
+  path: '/ethos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/america': typeof AmericaRoute
+  '/ethos': typeof EthosRoute
+  '/privacy': typeof PrivacyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/america': typeof AmericaRoute
+  '/ethos': typeof EthosRoute
+  '/privacy': typeof PrivacyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/america': typeof AmericaRoute
+  '/ethos': typeof EthosRoute
+  '/privacy': typeof PrivacyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/america' | '/ethos' | '/privacy'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/america' | '/ethos' | '/privacy'
+  id: '__root__' | '/' | '/america' | '/ethos' | '/privacy'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AmericaRoute: typeof AmericaRoute
+  EthosRoute: typeof EthosRoute
+  PrivacyRoute: typeof PrivacyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/america': {
+      id: '/america'
+      path: '/america'
+      fullPath: '/america'
+      preLoaderRoute: typeof AmericaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ethos': {
+      id: '/ethos'
+      path: '/ethos'
+      fullPath: '/ethos'
+      preLoaderRoute: typeof EthosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AmericaRoute: AmericaRoute,
+  EthosRoute: EthosRoute,
+  PrivacyRoute: PrivacyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

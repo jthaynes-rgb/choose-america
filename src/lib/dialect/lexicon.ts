@@ -1,14 +1,4 @@
-export type DialectId =
-  | "southern"
-  | "appalachian"
-  | "aave"
-  | "mexican-american"
-  | "midwestern"
-  | "northeastern"
-  | "california"
-  | "upper-midwest"
-  | "italian-american"
-  | "widespread";
+export type DialectId = "gulf" | "appalachian" | "atlantic" | "urban";
 
 export type Marker = {
   display: string;
@@ -18,102 +8,90 @@ export type Marker = {
 };
 
 export const DIALECT_NAME: Record<DialectId, string> = {
-  southern: "Southern",
+  gulf: "Gulf Coast",
   appalachian: "Appalachian",
-  aave: "African American English",
-  "mexican-american": "Mexican-American English",
-  midwestern: "Midwestern",
-  northeastern: "Northeastern",
-  california: "California",
-  "upper-midwest": "Upper Midwest",
-  "italian-american": "Italian-American English",
-  widespread: "Widespread",
+  atlantic: "Atlantic Coastal",
+  urban: "Urban",
 };
 
 export const MARKERS: Marker[] = [
   {
+    display: "where y'at",
+    phrases: ["where y'at", "where yat"],
+    dialects: ["gulf"],
+    gloss: "How are you. A greeting, not a request for a street.",
+  },
+  {
+    display: "yeah you right",
+    phrases: ["yeah you right"],
+    dialects: ["gulf"],
+    gloss: "Agreement. You have it.",
+  },
+  {
+    display: "lagniappe",
+    phrases: ["lagniappe"],
+    dialects: ["gulf"],
+    gloss: "A little extra. Thrown in.",
+  },
+  {
+    display: "make groceries",
+    phrases: ["make groceries", "making groceries", "make a grocery"],
+    dialects: ["gulf"],
+    gloss: "Buy food. The errand, not cooking it.",
+  },
+  {
+    display: "neutral ground",
+    phrases: ["neutral ground"],
+    dialects: ["gulf"],
+    gloss: "The median. Where the streetcar runs.",
+  },
+  {
+    display: "cher",
+    phrases: ["cher", "sha"],
+    dialects: ["gulf"],
+    gloss: "Dear. Address, warm.",
+  },
+  {
     display: "all y'all",
     phrases: ["all y'all", "all yall"],
-    dialects: ["southern"],
-    gloss: "Every one of you. A real plural, not a mistake for you.",
+    dialects: ["gulf"],
+    gloss: "Every one of you. A real plural.",
   },
   {
     display: "y'all",
     phrases: ["y'all", "yall", "ya'll"],
-    dialects: ["southern"],
-    gloss: "You, plural. Standard pronoun across the South and far beyond it.",
+    dialects: ["gulf", "atlantic"],
+    gloss: "You, plural. The word stands.",
   },
   {
     display: "fixin' to",
     phrases: ["fixin' to", "fixin to", "fixing to"],
-    dialects: ["southern"],
-    gloss: "About to. Immediate future. Valid as it stands.",
-  },
-  {
-    display: "finna",
-    phrases: ["finna"],
-    dialects: ["aave", "southern"],
-    gloss: "About to. Same plan as fixin' to, said in this form. Do not swap the word.",
+    dialects: ["gulf", "appalachian"],
+    gloss: "About to. Immediate future.",
   },
   {
     display: "might could",
     phrases: ["might could", "might should", "might would"],
-    dialects: ["southern", "appalachian"],
+    dialects: ["gulf", "appalachian", "atlantic"],
     gloss: "Double modal. Tentative possibility. The stack is the grammar.",
-  },
-  {
-    display: "reckon",
-    phrases: ["reckon"],
-    dialects: ["southern", "appalachian"],
-    gloss: "Suppose, or think. A verdict hedged just enough.",
-  },
-  {
-    display: "over yonder",
-    phrases: ["over yonder", "yonder"],
-    dialects: ["southern", "appalachian"],
-    gloss: "Over there. A place you can point at.",
-  },
-  {
-    display: "cattywampus",
-    phrases: ["cattywampus", "cattywompus", "catawampus"],
-    dialects: ["southern"],
-    gloss: "Askew. Diagonal. Not where it ought to sit.",
-  },
-  {
-    display: "bless your heart",
-    phrases: ["bless your heart", "bless his heart", "bless her heart"],
-    dialects: ["southern"],
-    gloss: "Sincere sympathy, or a soft blade. Tone decides. Do not flatten it.",
-  },
-  {
-    display: "right quick",
-    phrases: ["right quick"],
-    dialects: ["southern"],
-    gloss: "Promptly. The right is an intensifier, not a direction.",
   },
   {
     display: "you'uns",
     phrases: ["you'uns", "you uns", "youuns", "y'uns"],
     dialects: ["appalachian"],
-    gloss: "You, plural. Appalachian. Kin to yinz, not a slur of you ones.",
+    gloss: "You, plural.",
   },
   {
     display: "holler",
     phrases: ["the holler", "up the holler"],
     dialects: ["appalachian"],
-    gloss: "A hollow. The narrow valley, and the community in it.",
-  },
-  {
-    display: "holler at",
-    phrases: ["holler at"],
-    dialects: ["aave"],
-    gloss: "Contact someone. Talk to them. Not a shout unless the line says so.",
+    gloss: "A hollow. The valley, and the people in it.",
   },
   {
     display: "airish",
     phrases: ["airish"],
     dialects: ["appalachian"],
-    gloss: "Chilly. A bite in the air.",
+    gloss: "Chilly.",
   },
   {
     display: "sigogglin",
@@ -124,230 +102,140 @@ export const MARKERS: Marker[] = [
   {
     display: "a right smart",
     phrases: ["a right smart", "right smart"],
-    dialects: ["appalachian", "southern"],
-    gloss: "A good amount. More than a little.",
+    dialects: ["appalachian"],
+    gloss: "A good amount.",
   },
   {
-    display: "deadass",
-    phrases: ["deadass"],
-    dialects: ["aave", "northeastern"],
-    gloss: "Seriously. No joke. New York and far wider now.",
+    display: "yonder",
+    phrases: ["over yonder", "yonder"],
+    dialects: ["appalachian", "gulf"],
+    gloss: "Over there. A place you can point at.",
   },
   {
-    display: "no cap",
-    phrases: ["no cap"],
-    dialects: ["aave"],
-    gloss: "Not lying. The line is straight.",
+    display: "reckon",
+    phrases: ["reckon"],
+    dialects: ["appalachian", "gulf"],
+    gloss: "Suppose. Think.",
   },
   {
-    display: "on god",
-    phrases: ["on god"],
-    dialects: ["aave"],
-    gloss: "Sworn. Emphasis, not a sermon.",
+    display: "high tider",
+    phrases: ["high tider", "hoi toide", "hoi toider"],
+    dialects: ["atlantic"],
+    gloss: "Outer Banks speech, and the people who keep it.",
   },
   {
-    display: "tryna",
-    phrases: ["tryna", "tryina"],
-    dialects: ["aave", "widespread"],
-    gloss: "Trying to. The reduction is the form.",
+    display: "dingbatter",
+    phrases: ["dingbatter", "dingbatters"],
+    dialects: ["atlantic"],
+    gloss: "Someone from off. An outsider on the Banks.",
   },
   {
-    display: "ion",
-    phrases: ["ion"],
-    dialects: ["aave"],
-    gloss: "I don't. Written the way it hits the ear.",
+    display: "pizer",
+    phrases: ["pizer", "the pizer"],
+    dialects: ["atlantic"],
+    gloss: "The porch.",
   },
   {
-    display: "she be",
-    phrases: ["she be", "he be", "they be", "we be", "i be"],
-    dialects: ["aave"],
-    gloss: "Habitual be. A regular state, not a missing is. She be working means she works, on the regular.",
+    display: "mash",
+    phrases: ["mash the"],
+    dialects: ["atlantic"],
+    gloss: "Press. Mash the light means hit the switch.",
   },
   {
-    display: "shawty",
-    phrases: ["shawty"],
-    dialects: ["aave", "southern"],
-    gloss: "A person, often young, often addressed with warmth. Not shorty corrected.",
-  },
-  {
-    display: "jawn",
-    phrases: ["jawn"],
-    dialects: ["aave", "northeastern"],
-    gloss: "Philadelphia. A thing, a place, a person. The noun that holds the slot.",
-  },
-  {
-    display: "órale",
-    phrases: ["orale"],
-    dialects: ["mexican-american"],
-    gloss: "Alright. Let's go. Agreement with some muscle.",
-  },
-  {
-    display: "watcha",
-    phrases: ["watcha"],
-    dialects: ["mexican-american"],
-    gloss: "Watch out, or look. A warning and a pointer.",
-  },
-  {
-    display: "mija",
-    phrases: ["mija", "mijo"],
-    dialects: ["mexican-american"],
-    gloss: "My daughter, my son. Affection. Used well past childhood.",
-  },
-  {
-    display: "vato",
-    phrases: ["vato"],
-    dialects: ["mexican-american"],
-    gloss: "Guy. Dude. In-group address.",
-  },
-  {
-    display: "simón",
-    phrases: ["simon"],
-    dialects: ["mexican-american"],
-    gloss: "Yeah. A firm yes. (Also a name — read the line.)",
-  },
-  {
-    display: "barely",
-    phrases: ["barely"],
-    dialects: ["mexican-american"],
-    gloss: "Often just now, not only hardly. I barely got here can mean I just arrived.",
-  },
-  {
-    display: "ope",
-    phrases: ["ope"],
-    dialects: ["midwestern"],
-    gloss: "Small apology or a bump in the aisle. The whole word.",
-  },
-  {
-    display: "you betcha",
-    phrases: ["you betcha", "you betcha"],
-    dialects: ["midwestern", "upper-midwest"],
-    gloss: "Yes. Count on it.",
-  },
-  {
-    display: "uff da",
-    phrases: ["uff da", "uffda", "uff-da"],
-    dialects: ["upper-midwest"],
-    gloss: "German and Scandinavian Midwest. Exhaustion, surprise, or oh no.",
-  },
-  {
-    display: "doncha know",
-    phrases: ["doncha know", "dontcha know"],
-    dialects: ["midwestern", "upper-midwest"],
-    gloss: "A tag. You know. The sentence leans on you.",
-  },
-  {
-    display: "scootch",
-    phrases: ["scootch", "scooch"],
-    dialects: ["midwestern"],
-    gloss: "Slide over a little. Make a gap.",
-  },
-  {
-    display: "a pop",
-    phrases: ["a pop", "the pop"],
-    dialects: ["midwestern"],
-    gloss: "A soft drink. Pop, not soda, in a lot of the middle of the country.",
-  },
-  {
-    display: "bubbler",
-    phrases: ["bubbler"],
-    dialects: ["midwestern", "northeastern"],
-    gloss: "A drinking fountain. Wisconsin, and Rhode Island.",
+    display: "benne",
+    phrases: ["benne"],
+    dialects: ["atlantic"],
+    gloss: "Sesame. Lowcountry.",
   },
   {
     display: "wicked",
     phrases: ["wicked"],
-    dialects: ["northeastern"],
-    gloss: "Very. New England intensifier. Wicked cold is very cold.",
+    dialects: ["atlantic"],
+    gloss: "Very. Coastal New England.",
   },
   {
-    display: "yous",
-    phrases: ["yous", "youse", "youse guys"],
-    dialects: ["northeastern"],
-    gloss: "You, plural. New York, New Jersey, Philadelphia, and nearby.",
-  },
-  {
-    display: "yinz",
-    phrases: ["yinz", "yinzers"],
-    dialects: ["northeastern"],
-    gloss: "You, plural. Pittsburgh.",
+    display: "bubbler",
+    phrases: ["bubbler"],
+    dialects: ["atlantic"],
+    gloss: "A drinking fountain. Rhode Island.",
   },
   {
     display: "bang a uey",
-    phrases: ["bang a uey", "bang a u-ey", "bang a u ey"],
-    dialects: ["northeastern"],
-    gloss: "Make a U-turn. Boston, mostly.",
+    phrases: ["bang a uey", "bang a u-ey"],
+    dialects: ["atlantic"],
+    gloss: "Make a U-turn.",
   },
   {
     display: "jimmies",
     phrases: ["jimmies"],
-    dialects: ["northeastern"],
-    gloss: "Sprinkles. On ice cream. New England.",
+    dialects: ["atlantic"],
+    gloss: "Sprinkles. On ice cream.",
   },
   {
-    display: "schlep",
-    phrases: ["schlep"],
-    dialects: ["northeastern"],
-    gloss: "Haul something, or drag yourself. Yiddish in the American mouth.",
+    display: "deadass",
+    phrases: ["deadass"],
+    dialects: ["urban"],
+    gloss: "Seriously. No joke.",
+  },
+  {
+    display: "finna",
+    phrases: ["finna"],
+    dialects: ["urban"],
+    gloss: "About to. This form. Do not swap the word.",
+  },
+  {
+    display: "no cap",
+    phrases: ["no cap"],
+    dialects: ["urban"],
+    gloss: "Not lying.",
+  },
+  {
+    display: "ion",
+    phrases: ["ion"],
+    dialects: ["urban"],
+    gloss: "I don't.",
+  },
+  {
+    display: "she be",
+    phrases: ["she be", "he be", "they be", "we be", "i be"],
+    dialects: ["urban"],
+    gloss: "Habitual. A regular state, not a missing is.",
   },
   {
     display: "bodega",
     phrases: ["bodega"],
-    dialects: ["northeastern"],
-    gloss: "The corner store. New York.",
+    dialects: ["urban"],
+    gloss: "The corner store.",
   },
   {
     display: "stoop",
-    phrases: ["stoop", "the stoop"],
-    dialects: ["northeastern"],
-    gloss: "The front steps. Where the block sits.",
+    phrases: ["the stoop", "stoop"],
+    dialects: ["urban"],
+    gloss: "The front steps.",
   },
   {
-    display: "hella",
-    phrases: ["hella", "hecka"],
-    dialects: ["california"],
-    gloss: "Very, or a lot. Northern California, and then everywhere.",
+    display: "jawn",
+    phrases: ["jawn"],
+    dialects: ["urban"],
+    gloss: "A thing, a place, a person. Philadelphia.",
   },
   {
-    display: "the 101",
-    phrases: ["the 101", "the 5", "the 405", "the 10"],
-    dialects: ["california"],
-    gloss: "Freeways take the. The 101 is the road's name, article included.",
+    display: "yous",
+    phrases: ["yous", "youse", "youse guys"],
+    dialects: ["urban"],
+    gloss: "You, plural.",
   },
   {
-    display: "gnarly",
-    phrases: ["gnarly"],
-    dialects: ["california"],
-    gloss: "Intense. Rough, or impressive, depending on the wave.",
+    display: "schlep",
+    phrases: ["schlep"],
+    dialects: ["urban"],
+    gloss: "Haul it.",
   },
   {
-    display: "gabagool",
-    phrases: ["gabagool"],
-    dialects: ["italian-american"],
-    gloss: "Capicola. The New York–New Jersey Italian pronunciation is the word.",
-  },
-  {
-    display: "marone",
-    phrases: ["marone", "madonn"],
-    dialects: ["italian-american"],
-    gloss: "Madonna. An exclamation. Surprise, dismay, emphasis.",
-  },
-  {
-    display: "capeesh",
-    phrases: ["capeesh", "capisce", "capische"],
-    dialects: ["italian-american"],
-    gloss: "Understand? A check that you got it.",
-  },
-  {
-    display: "gonna",
-    phrases: ["gonna", "wanna", "gotta"],
-    dialects: ["widespread"],
-    gloss: "Going to, want to, got to. Ordinary American reduction.",
-  },
-  {
-    display: "ain't",
-    phrases: ["ain't"],
-    dialects: ["widespread", "southern", "aave", "appalachian"],
-    gloss: "Negation. Am not, isn't, aren't, hasn't. Widespread and structured.",
+    display: "holler at",
+    phrases: ["holler at"],
+    dialects: ["urban"],
+    gloss: "Contact someone. Not a shout unless the line says so.",
   },
 ];
 
@@ -361,185 +249,69 @@ export type Region = {
 
 export const REGIONS: Region[] = [
   {
-    id: "southern",
-    name: "Southern",
-    where: "From Virginia through Texas, and the Black Belt, and the Gulf.",
-    note: "Plural you, imminent future, and a habit of stacking modals. None of that needs translation before it counts as English.",
+    id: "gulf",
+    name: "Gulf Coast",
+    where: "Louisiana, Mississippi, Alabama, the Florida Gulf, the Texas coast.",
+    note: "The line stays. y'all, fixin' to, and the New Orleans errands are already English.",
     lines: [
       {
-        text: "Y'all fixin' to head out, or what?",
-        why: "y'all is the plural. fixin' to puts the leaving in the next minute.",
+        text: "Where y'at? Y'all fixin' to make groceries?",
+        why: "where y'at greets. make groceries is the food run.",
       },
       {
-        text: "I might could swing by after supper.",
-        why: "might could is a double modal. Supper is the evening meal.",
-      },
-      {
-        text: "That frame's sitting cattywampus.",
-        why: "cattywampus means askew. Leave the word.",
+        text: "Yeah you right. That's some lagniappe, cher.",
+        why: "yeah you right agrees. lagniappe is the extra. cher is dear.",
       },
     ],
   },
   {
     id: "appalachian",
     name: "Appalachian",
-    where: "The mountains from north Georgia up through West Virginia and eastern Kentucky.",
-    note: "A lot of this is older English that stayed put. you'uns, holler, airish.",
+    where: "The mountains from north Georgia through eastern Kentucky and West Virginia.",
+    note: "you'uns, holler, airish. Older English that stayed put.",
     lines: [
       {
         text: "You'uns come up the holler if it gets airish.",
-        why: "you'uns = you plural. A holler is a hollow. Airish is chilly.",
+        why: "you'uns is plural you. A holler is a hollow. Airish is chilly.",
       },
       {
         text: "That shelf looks sigogglin.",
         why: "sigogglin: out of square.",
       },
+    ],
+  },
+  {
+    id: "atlantic",
+    name: "Atlantic Coastal",
+    where: "The Banks, the Tidewater, the Lowcountry, and the New England shore.",
+    note: "High tider, the pizer, mash the light, wicked.",
+    lines: [
       {
-        text: "We had a right smart of rain.",
-        why: "a right smart of: a good amount.",
+        text: "Mash the light. It's wicked cold on the pizer.",
+        why: "mash means press. A pizer is a porch. wicked means very.",
+      },
+      {
+        text: "Dingbatters are thick. High tider weather.",
+        why: "A dingbatter is from off. High tider is the Banks speech.",
       },
     ],
   },
   {
-    id: "aave",
-    name: "African American English",
-    where: "Nationwide. A full variety with its own aspect, negation, and future.",
-    note: "Habitual be is not a dropped is. finna is not broken fixing to. The line is already grammatical.",
+    id: "urban",
+    name: "Urban",
+    where: "The cities. The stoop, the bodega, the block.",
+    note: "Habitual be is not a dropped is. finna is not a mistake.",
     lines: [
       {
         text: "She be working nights, deadass.",
-        why: "be marks habit. deadass locks the claim.",
+        why: "be marks habit. deadass locks it.",
       },
       {
-        text: "I'm finna head out, no cap.",
-        why: "finna = immediate future. no cap = this is straight.",
-      },
-      {
-        text: "Ion know, just holler at me.",
-        why: "ion = I don't. holler at = contact.",
-      },
-    ],
-  },
-  {
-    id: "mexican-american",
-    name: "Mexican-American English",
-    where: "Southwest, California, Texas, and cities well north of the border.",
-    note: "English with Spanish rhythm and a few words that changed jobs. barely often means just now.",
-    lines: [
-      {
-        text: "I barely got here, órale.",
-        why: "barely can mean just now. órale is agreement with force.",
-      },
-      {
-        text: "Watcha, mija, the pan is hot.",
-        why: "watcha warns. mija is affection.",
-      },
-      {
-        text: "Simón, tell that vato we're good.",
-        why: "simón = yes. vato = guy.",
-      },
-    ],
-  },
-  {
-    id: "midwestern",
-    name: "Midwestern",
-    where: "Ohio through the Plains. Friendly, and specific about soda.",
-    note: "ope, you betcha, pop, scootch. Small words that do real work.",
-    lines: [
-      {
-        text: "Ope, sorry — you betcha I'll scootch over.",
-        why: "ope apologizes for the bump. scootch is a small move.",
-      },
-      {
-        text: "Want a pop?",
-        why: "Pop is the soft drink.",
-      },
-      {
-        text: "Cold one, doncha know.",
-        why: "A tag. The weather, confirmed.",
-      },
-    ],
-  },
-  {
-    id: "northeastern",
-    name: "Northeastern",
-    where: "New England, New York, New Jersey, Philadelphia.",
-    note: "Wicked, yous, yinz, the stoop, the bodega. Packed cities, packed pronouns.",
-    lines: [
-      {
-        text: "Wicked cold out. Bang a uey at the light.",
-        why: "wicked = very. bang a uey = U-turn.",
-      },
-      {
-        text: "Yous grab jimmies for the ice cream.",
-        why: "yous = you plural. jimmies = sprinkles.",
-      },
-      {
-        text: "Leave it on the stoop, I'll schlep it up.",
-        why: "stoop = front steps. schlep = haul.",
-      },
-    ],
-  },
-  {
-    id: "california",
-    name: "California",
-    where: "The coast, the valleys, the freeways with the article left on.",
-    note: "hella, and the 101. The the is part of the name.",
-    lines: [
-      {
-        text: "It's hella foggy on the 101.",
-        why: "hella = very. the 101 keeps the article.",
-      },
-      {
-        text: "That set was gnarly.",
-        why: "gnarly = intense.",
-      },
-    ],
-  },
-  {
-    id: "upper-midwest",
-    name: "Upper Midwest",
-    where: "Minnesota, the Dakotas, Wisconsin. German and Scandinavian still in the grain.",
-    note: "uff da. And come with, with no object after it.",
-    lines: [
-      {
-        text: "Uff da, that was a drive.",
-        why: "uff da carries the tiredness.",
-      },
-      {
-        text: "You coming with?",
-        why: "come with, no object. The with stays. Valid.",
-      },
-    ],
-  },
-  {
-    id: "italian-american",
-    name: "Italian-American English",
-    where: "New York, New Jersey, parts of New England and the industrial cities.",
-    note: "Food words kept the pronunciation the boats brought.",
-    lines: [
-      {
-        text: "Grab the gabagool, capeesh?",
-        why: "gabagool is capicola. capeesh checks that you heard.",
-      },
-      {
-        text: "Marone, the traffic.",
-        why: "marone — Madonna — is the exclamation.",
+        text: "Leave it on the stoop. I'm finna hit the bodega.",
+        why: "stoop is the steps. finna is about to. bodega is the corner store.",
       },
     ],
   },
 ];
 
-export const SAMPLES: string[] = [
-  "Y'all fixin' to head out, or what?",
-  "She be working nights, deadass.",
-  "I barely got here, órale.",
-  "Ope — you betcha I'll scootch over.",
-  "Wicked cold. Bang a uey at the light.",
-  "It's hella foggy on the 101.",
-  "You'uns come up the holler if it gets airish.",
-  "Y'all got the time?",
-  "What's finna mean",
-  "Set a timer for 2 minutes",
-  "Remember this: stop by the bodega",
-];
+export const SAMPLES: string[] = REGIONS.flatMap((region) => region.lines.map((line) => line.text));

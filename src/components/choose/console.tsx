@@ -1,397 +1,331 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Mic, Shield, Square, Timer, Volume2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { BookOpen, Mic, Shield, Volume2, VolumeX } from "lucide-react";
 import { REGIONS, SAMPLES, type DialectId } from "@/lib/dialect/lexicon";
 import {
   dialectLabel,
   interpret,
   lookupGloss,
+  spokenReading,
   type Interpretation,
 } from "@/lib/dialect/parse";
+import {
+  englishVoices,
+  speakText,
+  startStt,
+  stopText,
+  sttAvailable,
+  ttsAvailable,
+  setEarRegion,
+  warmEar,
+} from "@/lib/dialect/speech";
+import { EAR_ID } from "@/lib/dialect/bias";
+import { envelope, publishDesk } from "@/lib/aethelos/command";
+import { Flag } from "@/components/choose/flag";
+import { CANON } from "@/lib/canon";
+import { REGION_PROFILES, type RegionId } from "@/lib/region";
 
-type LedgerItem = {
-  id: string;
-  at: string;
-  raw: string;
-  dialects: DialectId[];
-  intent: string;
-};
-
-type SpeechResult = {
-  isFinal: boolean;
-  0: { transcript: string };
-};
-
-type SpeechEvent = {
-  resultIndex: number;
-  results: ArrayLike<SpeechResult>;
-};
-
-type SpeechError = { error: string };
-
-type Rec = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((ev: SpeechEvent) => void) | null;
-  onerror: ((ev: SpeechError) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-const STORE_KEY = "choose-america.v1";
-
-function clock(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+function megabytes(bytes: number): string {
+  return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
-function speak(line: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(line);
-  utter.lang = "en-US";
-  window.speechSynthesis.speak(utter);
-}
-
-function beep() {
-  const ctx = new AudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.frequency.value = 740;
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  gain.gain.setValueAtTime(0.04, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
-  osc.start();
-  osc.stop(ctx.currentTime + 0.22);
-  osc.onended = () => void ctx.close();
-}
-
-function recognizer(): (new () => Rec) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: new () => Rec;
-    webkitSpeechRecognition?: new () => Rec;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+function EarLoad({
+  load,
+  bytes,
+}: {
+  load: "loading" | "ready" | "error";
+  bytes: { loaded: number; total: number } | null;
+}) {
+  if (load === "error") {
+    return (
+      <p className="mt-3 font-sans text-sm text-fg">The ear did not load. The line was not sent. Type it.</p>
+    );
+  }
+  if (load === "ready") {
+    return <p className="mt-3 font-sans text-sm text-fg">The ear is on this device.</p>;
+  }
+  const total = bytes?.total ?? 0;
+  const loaded = bytes?.loaded ?? 0;
+  const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((loaded / total) * 100))) : 0;
+  return (
+    <div className="mt-3 max-w-xs">
+      <p className="font-sans text-sm text-fg">
+        {total > 0 ? `whisper-tiny.en · ${megabytes(loaded)} of ${megabytes(total)}` : "whisper-tiny.en · getting the size"}
+      </p>
+      <progress className="ear-load mt-1" value={pct} max={100} aria-label="Ear download" />
+    </div>
+  );
 }
 
 export function Console() {
   const [draft, setDraft] = useState("");
   const [interim, setInterim] = useState("");
   const [take, setTake] = useState<Interpretation | null>(null);
-  const [executed, setExecuted] = useState<string | null>(null);
-  const [ledger, setLedger] = useState<LedgerItem[]>([]);
-  const [notes, setNotes] = useState<string[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [gloss, setGloss] = useState<string | null>(null);
+  const [reply, setReply] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
-  const [speechOn, setSpeechOn] = useState(false);
-  const [speechOk, setSpeechOk] = useState(false);
-  const [micError, setMicError] = useState<string | null>(null);
-  const [bins, setBins] = useState<number[]>(() => Array(12).fill(0));
-  const [timerEnds, setTimerEnds] = useState<number | null>(null);
-  const [timerLabel, setTimerLabel] = useState("");
-  const [now, setNow] = useState(() => Date.now());
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  const ledgerRef = useRef<LedgerItem[]>([]);
-  const applyRef = useRef<(raw: string) => void>(() => {});
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioRef = useRef<AudioContext | null>(null);
-  const rafRef = useRef(0);
-  const recRef = useRef<Rec | null>(null);
-  const beeped = useRef(false);
+  const [talking, setTalking] = useState(false);
+  const [sttOk, setSttOk] = useState(false);
+  const [micNote, setMicNote] = useState<string | null>(null);
+  const [speaking, setSpeaking] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceURI, setVoiceURI] = useState<string>("");
+  const [region, setRegion] = useState<RegionId | null>(null);
+  const [netCalls, setNetCalls] = useState(0);
+  const [earLoad, setEarLoad] = useState<"loading" | "ready" | "error">("loading");
+  const [earBytes, setEarBytes] = useState<{ loaded: number; total: number } | null>(null);
+  const talkRef = useRef(false);
+  const stopRef = useRef<(() => void) | null>(null);
+  const applyRef = useRef<(raw: string, talk?: boolean) => void>(() => {});
+  const takeRef = useRef<Interpretation | null>(null);
 
   useEffect(() => {
-    ledgerRef.current = ledger;
-  }, [ledger]);
+    takeRef.current = take;
+  }, [take]);
 
   useEffect(() => {
-    setSpeechOk(recognizer() !== null);
-    try {
-      const saved = localStorage.getItem(STORE_KEY);
-      if (saved) {
-        const data = JSON.parse(saved) as { ledger?: LedgerItem[]; notes?: string[] };
-        if (Array.isArray(data.ledger)) setLedger(data.ledger.slice(0, 24));
-        if (Array.isArray(data.notes)) {
-          setNotes(data.notes.filter((n) => typeof n === "string").slice(0, 40));
-        }
-      }
-    } catch {
-      /* closed loop — a bad store is just empty */
-    }
-    setHydrated(true);
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduceMotion(motion.matches);
-    const onMotion = () => setReduceMotion(motion.matches);
-    motion.addEventListener("change", onMotion);
-    return () => motion.removeEventListener("change", onMotion);
+    return warmEar({
+      onProgress: (progress) => {
+        setEarLoad("loading");
+        setEarBytes({ loaded: progress.loaded, total: progress.total });
+      },
+      onReady: () => setEarLoad("ready"),
+      onError: () => setEarLoad("error"),
+    });
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ ledger, notes }));
-  }, [hydrated, ledger, notes]);
+    try {
+      localStorage.removeItem("choose-america.v1");
+    } catch {
+      /* nothing kept */
+    }
+    setSttOk(sttAvailable());
+    if (!ttsAvailable()) return;
+    const load = () => {
+      const next = englishVoices();
+      setVoices(next);
+      setVoiceURI((current) => current || next.find((voice) => voice.lang === "en-US")?.voiceURI || next[0]?.voiceURI || "");
+    };
+    load();
+    window.speechSynthesis.addEventListener("voiceschanged", load);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
+  }, []);
 
   useEffect(() => {
-    if (!timerEnds) return;
-    const id = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(id);
-  }, [timerEnds]);
+    setEarRegion(region);
+  }, [region]);
+
+  useEffect(
+    () => () => {
+      stopRef.current?.();
+      stopText();
+    },
+    [],
+  );
 
   useEffect(() => {
-    if (!timerEnds) return;
-    if (now < timerEnds) {
-      beeped.current = false;
+    if (!take) {
+      publishDesk(null);
       return;
     }
-    if (!beeped.current) {
-      beeped.current = true;
-      beep();
-      setExecuted("Timer's up.");
-      setTimerEnds(null);
-    }
-  }, [now, timerEnds]);
+    publishDesk(envelope(take, "line"));
+  }, [take]);
 
-  function pushLedger(result: Interpretation) {
-    if (!result.raw) return;
-    const item: LedgerItem = {
-      id: `${Date.now()}`,
-      at: clock(new Date()),
-      raw: result.raw,
-      dialects: result.dialects.filter((id) => id !== "widespread").slice(0, 3),
-      intent: result.intentLabel,
-    };
-    setLedger((prev) => [item, ...prev].slice(0, 24));
+  function readRaw(line: string) {
+    if (!line.trim()) return;
+    setSpeaking(true);
+    speakText(line, voiceURI || null, () => setSpeaking(false));
   }
 
-  function applyLine(rawInput: string) {
+  function applyLine(rawInput: string, talk = false) {
     const result = interpret(rawInput);
-    setTake(result);
-    setDraft(result.raw);
-    const cmd = result.command;
-
-    if (cmd.type === "repeat") {
-      setExecuted("Repeat.");
-      return;
-    }
-    if (cmd.type === "wipe") {
-      setLedger([]);
-      setNotes([]);
-      setExecuted("Tape clear.");
-      return;
-    }
-    if (cmd.type === "readback") {
-      const prior = ledgerRef.current.find((item) => item.raw && item.intent !== "Read the line.");
-      if (!prior) {
-        setExecuted("Repeat.");
+    if (result.command.type === "escape" || result.command.type === "tot") {
+      const held = takeRef.current;
+      setInterim("");
+      setDraft(held?.raw ?? "");
+      if (result.command.type === "escape") {
+        stopText();
+        setSpeaking(false);
+        setReply("Escape. The line stays.");
+        if (held) publishDesk(envelope(held, "escape"));
+        if (talk) readRaw("Escape. The line stays.");
         return;
       }
-      speak(prior.raw);
-      setExecuted(prior.raw);
+      setReply("The line stays.");
       return;
     }
-    if (cmd.type === "time") {
-      setExecuted(clock(new Date()));
-      pushLedger(result);
+    setTake(result);
+    takeRef.current = result;
+    setInterim("");
+    setDraft(result.command.type === "drop" ? "" : result.raw);
+    const glossText =
+      result.command.type === "gloss" ? (lookupGloss(result.command.query) ?? "Not in the book.") : null;
+    setGloss(glossText);
+    if (result.command.type === "readback") {
+      const prior = takeRef.current?.raw;
+      setReply(prior ?? "Repeat.");
+      if (prior) readRaw(prior);
       return;
     }
-    if (cmd.type === "timer") {
-      beeped.current = false;
-      setTimerLabel(cmd.label);
-      setTimerEnds(Date.now() + cmd.ms);
-      setExecuted(`${cmd.label}.`);
-      pushLedger(result);
-      return;
-    }
-    if (cmd.type === "gloss") {
-      setExecuted(lookupGloss(cmd.query) ?? "Not in the book.");
-      pushLedger(result);
-      return;
-    }
-    if (cmd.type === "note") {
-      setNotes((prev) => [cmd.text, ...prev].slice(0, 40));
-      setExecuted("Noted.");
-      pushLedger(result);
-      return;
-    }
-    setExecuted("Held.");
-    pushLedger(result);
+    const spoken = spokenReading(result, glossText);
+    setReply(talk ? spoken : null);
+    if (talk && result.command.type !== "drop") readRaw(spoken);
   }
 
   applyRef.current = applyLine;
 
-  function stopListen() {
-    cancelAnimationFrame(rafRef.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    void audioRef.current?.close();
-    audioRef.current = null;
-    try {
-      recRef.current?.stop();
-    } catch {
-      /* already stopped */
-    }
-    recRef.current = null;
+  function stopMic() {
+    talkRef.current = false;
+    stopRef.current?.();
+    stopRef.current = null;
     setListening(false);
+    setTalking(false);
     setInterim("");
-    setBins(Array(12).fill(0));
   }
 
-  function startRec() {
-    const Ctor = recognizer();
-    if (!Ctor) {
-      setMicError("No browser recognizer.");
-      return;
-    }
-    const rec = new Ctor();
-    rec.lang = "en-US";
-    rec.interimResults = true;
-    rec.continuous = false;
-    rec.onresult = (ev) => {
-      let interimText = "";
-      let finalText = "";
-      for (let i = ev.resultIndex; i < ev.results.length; i += 1) {
-        const piece = ev.results[i][0].transcript;
-        if (ev.results[i].isFinal) finalText += piece;
-        else interimText += piece;
-      }
-      setInterim(interimText.trim());
-      const line = finalText.trim();
-      if (line) {
+  function startMic(talk: boolean) {
+    stopRef.current?.();
+    stopRef.current = null;
+    setMicNote(null);
+    setNetCalls(0);
+    stopText();
+    setSpeaking(false);
+    talkRef.current = talk;
+    const stop = startStt({
+      onInterim: (text) => setInterim(text),
+      onFinal: (text) => {
         setInterim("");
-        applyRef.current(line);
-      }
-    };
-    rec.onerror = (ev) => {
-      if (ev.error === "aborted") return;
-      if (ev.error === "not-allowed") setMicError("Mic blocked.");
-      else setExecuted("Repeat.");
-    };
-    rec.onend = () => {
-      recRef.current = null;
-    };
-    recRef.current = rec;
-    rec.start();
+        applyRef.current(text, talkRef.current);
+      },
+      onEnd: () => {
+        stopRef.current = null;
+        setListening(false);
+        setTalking(false);
+        talkRef.current = false;
+      },
+      onError: (code) => {
+        setListening(false);
+        setTalking(false);
+        talkRef.current = false;
+        setInterim("");
+        if (code === "not-allowed" || code === "service-not-allowed") setMicNote("Mic blocked.");
+        else if (code === "unavailable") setMicNote("No on-device ear in this window. Type the line.");
+        else if (code === "ear") setMicNote("The ear did not load. The line was not sent. Type it.");
+        else if (code === "language-not-supported") setMicNote("No on-device English pack. Type the line.");
+        else setMicNote("Repeat.");
+      },
+      onStatus: (status) => {
+        if (status === "loading") setMicNote("Loading the on-device ear. The line stays here.");
+        else if (status === "reading") setMicNote("Reading the line on this device.");
+        else setMicNote("Hearing on this device.");
+      },
+      onNet: (count) => setNetCalls(count),
+    });
+    if (!stop) return;
+    stopRef.current = stop;
+    setListening(true);
+    setTalking(talk);
   }
 
-  async function startListen() {
-    setMicError(null);
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setMicError("No mic.");
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-      });
-      streamRef.current = stream;
-      const ctx = new AudioContext();
-      audioRef.current = ctx;
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 64;
-      source.connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      let last = 0;
-      const tick = (t: number) => {
-        rafRef.current = requestAnimationFrame(tick);
-        if (t - last < 80) return;
-        last = t;
-        analyser.getByteFrequencyData(data);
-        const next = Array.from(data.slice(0, 12), (n) => n / 255);
-        setBins(next);
-      };
-      rafRef.current = requestAnimationFrame(tick);
-      setListening(true);
-      if (speechOn) startRec();
-    } catch {
-      setMicError("Mic blocked.");
-      stopListen();
-    }
-  }
-
-  useEffect(() => () => stopListen(), []);
-
-  const remain = timerEnds ? Math.max(0, timerEnds - now) : 0;
-  const remainLabel =
-    remain > 0
-      ? `${Math.floor(remain / 60000)}:${String(Math.ceil((remain % 60000) / 1000)).padStart(2, "0")}`
-      : "";
-
-  const lead = take?.dialects.find((id) => id !== "widespread");
+  const lead = take?.dialects[0];
+  const shown = interim || take?.raw || "No line yet.";
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div>
-          <p className="font-mono text-xs tracking-widest text-muted uppercase">Voice layer</p>
-          <h1 className="mt-1 font-sans text-4xl font-semibold tracking-tight text-fg sm:text-5xl">
+          <p className="font-sans text-xs tracking-widest text-muted uppercase">One channel</p>
+          <h1 className="mt-1 flex flex-wrap items-center gap-3 font-title text-4xl font-semibold tracking-tight text-fg sm:text-5xl">
+            <Flag />
             Choose America
+            <span className="font-sans text-sm font-medium text-oxide">Beta</span>
           </h1>
-          <p className="mt-2 max-w-xl text-pretty text-muted">
-            American English, as spoken. The line is not corrected. Intent sits beside it.
-          </p>
+          <p className="mt-2 max-w-xl text-pretty text-gold">{CANON}</p>
+          <nav className="mt-3 flex gap-4 font-sans text-xs tracking-widest text-muted uppercase">
+            <Link to="/america" className="text-fg">
+              America
+            </Link>
+            <Link to="/ethos">Ethos</Link>
+            <Link to="/privacy">Privacy</Link>
+          </nav>
         </div>
-        <p className="inline-flex items-center gap-2 border border-line bg-surface px-3 py-2 font-mono text-xs tracking-widest text-fg uppercase">
+        <p className="inline-flex items-center gap-2 border border-line bg-surface px-3 py-2 font-sans text-xs tracking-widest text-fg uppercase">
           <Shield className="size-3.5 text-oxide" aria-hidden="true" />
-          Closed loop
+          {speaking ? "Speaking" : listening ? (talking ? "Talk" : "Listening") : "On this device"}
         </p>
       </header>
 
+      <section className="mb-6 border border-line bg-surface p-4 sm:p-5" aria-label="Desk">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-title text-2xl text-fg">Desk</h2>
+            <p className="mt-2 max-w-xl text-sm text-pretty text-fg">
+              Codex v1. Hold the line. One channel. No personal account.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => applyLine("escape")}
+            className="min-h-11 border border-line bg-bg px-4 font-sans text-xs tracking-widest text-fg uppercase"
+          >
+            Escape
+          </button>
+        </div>
+      </section>
+
+      <section className="mb-6 border border-line bg-surface p-4 sm:p-5" aria-label="Region">
+        <h2 className="font-title text-2xl text-fg">Region</h2>
+        <p className="mt-2 text-sm text-pretty text-muted">
+          None uses the base ear. A region is a bias layer, not a fine-tune. It does not rewrite the line.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            aria-pressed={region === null}
+            onClick={() => setRegion(null)}
+            className="min-h-11 border border-line bg-bg px-3 font-sans text-xs tracking-widest text-fg uppercase"
+          >
+            None
+          </button>
+          {REGION_PROFILES.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              aria-pressed={region === profile.id}
+              onClick={() => setRegion(profile.id)}
+              className="min-h-11 border border-line bg-bg px-3 text-left text-sm text-fg"
+            >
+              {profile.name}
+              {profile.experimental ? " · experimental" : ""}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-sm text-pretty text-muted">
+          {region ? REGION_PROFILES.find((profile) => profile.id === region)?.note : "Base model. No regional lift."}
+        </p>
+      </section>
+
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-        <section className="min-w-0 border border-line bg-surface p-4 sm:p-5" aria-label="Take">
+        <section className="min-w-0 border border-line bg-surface p-4 sm:p-5" aria-label="Line">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-mono text-xs tracking-widest text-muted uppercase">Take</h2>
-            <span className="font-mono text-xs text-oxide uppercase">
-              {listening ? "Listening" : "Idle"}
+            <h2 className="font-title text-2xl text-fg">Line</h2>
+            <span className="font-sans text-xs text-oxide uppercase">
+              {talking ? "Talk open" : listening ? "Mic open" : "Mic idle"}
             </span>
           </div>
-
-          <div className="mt-5 flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => (listening ? stopListen() : void startListen())}
-              aria-pressed={listening}
-              className="flex size-20 shrink-0 items-center justify-center rounded-full bg-oxide text-oxide-ink transition-transform duration-150 hover:scale-[1.03] active:scale-95"
-            >
-              {listening ? (
-                <Square className="size-6 fill-current" aria-hidden="true" />
-              ) : (
-                <Mic className="size-7" aria-hidden="true" />
-              )}
-              <span className="sr-only">{listening ? "Stop" : "Listen"}</span>
-            </button>
-            <div className="min-w-0 flex-1">
-              <div className="flex h-14 items-end gap-1" aria-hidden="true">
-                {(reduceMotion
-                  ? [bins.reduce((sum, n) => sum + n, 0) / Math.max(1, bins.length)]
-                  : bins
-                ).map((n, i) => (
-                  <span
-                    key={i}
-                    className="flex-1 bg-oxide"
-                    style={{ height: `${Math.max(4, Math.round(n * 56))}px` }}
-                  />
-                ))}
-              </div>
-              <p className="mt-2 font-mono text-xs text-muted">
-                {micError ?? "Level only. Audio does not leave this tab."}
-              </p>
-            </div>
-          </div>
-
           <form
-            className="mt-6"
+            className="mt-4"
             onSubmit={(event) => {
               event.preventDefault();
+              stopMic();
               applyLine(draft);
             }}
           >
-            <label htmlFor="line" className="font-mono text-xs tracking-widest text-muted uppercase">
+            <label htmlFor="line" className="sr-only">
               Line
             </label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 id="line"
                 value={interim || draft}
@@ -399,52 +333,60 @@ export function Console() {
                   setInterim("");
                   setDraft(event.target.value);
                 }}
-                placeholder="As spoken. Slang stays."
+                placeholder="As spoken. The words stay."
                 autoComplete="off"
-                className="min-h-12 w-full min-w-0 border border-line bg-bg px-3 font-mono text-base text-fg placeholder:text-muted"
+                autoCapitalize="off"
+                spellCheck={false}
+                inputMode="text"
+                className="min-h-12 w-full min-w-0 border border-line bg-bg px-3 font-sans text-base text-fg placeholder:text-muted"
               />
               <button
-                type="submit"
-                className="min-h-12 shrink-0 border border-fg bg-fg px-5 font-mono text-sm tracking-widest text-bg uppercase"
+                type="button"
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  startMic(false);
+                }}
+                onPointerUp={() => stopMic()}
+                onPointerCancel={() => stopMic()}
+                disabled={!sttOk}
+                aria-pressed={listening && !talking}
+                className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 bg-oxide px-4 text-oxide-ink disabled:opacity-40"
               >
-                Run
+                <Mic className="size-5" aria-hidden="true" />
+                <span className="font-sans text-sm tracking-widest uppercase">Hold to speak</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => (listening ? stopMic() : startMic(true))}
+                disabled={!sttOk || !ttsAvailable()}
+                aria-pressed={talking}
+                className="inline-flex min-h-12 shrink-0 items-center justify-center border border-fg bg-fg px-4 font-sans text-sm tracking-widest text-bg uppercase disabled:opacity-40"
+              >
+                {talking ? "Stop" : "Talk"}
+              </button>
+              <button
+                type="submit"
+                className="min-h-12 shrink-0 border border-line bg-surface px-5 font-sans text-sm tracking-widest text-fg uppercase"
+              >
+                Hold
               </button>
             </div>
           </form>
-
-          <div className="mt-5 border border-line bg-bg p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-mono text-xs tracking-widest text-muted uppercase">
-                  Browser recognizer
-                </p>
-                <p className="mt-1 text-sm text-pretty text-muted">
-                  {speechOn
-                    ? "On. This browser may send audio to its own speech service. This app still does not rewrite the words."
-                    : "Off. The mic here only draws a level. Type the line, or turn the recognizer on."}
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={speechOn}
-                disabled={!speechOk}
-                onClick={() => setSpeechOn((on) => !on)}
-                className={`mt-0.5 flex h-8 w-14 shrink-0 items-center border px-1 ${speechOn ? "border-oxide bg-oxide" : "border-line bg-inset"} disabled:opacity-40`}
-              >
-                <span
-                  className={`size-5 bg-surface transition-transform ${speechOn ? "translate-x-6" : "translate-x-0"}`}
-                />
-                <span className="sr-only">Browser speech engine</span>
-              </button>
-            </div>
-            {!speechOk ? (
-              <p className="mt-2 font-mono text-xs text-muted">No recognizer in this browser. Type the line.</p>
-            ) : null}
-          </div>
-
+          <p className="mt-3 font-sans text-sm text-fg" aria-live="polite">
+            {netCalls === 0 ? (
+              <span className="text-gold">Nothing left this device.</span>
+            ) : (
+              `${netCalls} network calls during this take.`
+            )}
+          </p>
+          <EarLoad load={earLoad} bytes={earBytes} />
+          <p className="mt-3 text-sm text-pretty text-muted">
+            {micNote ??
+              "Hold to speak. The words stay as spoken. Weights may be fetched once from Hugging Face. The wasm comes from the app host. The line is not sent."}
+          </p>
           <div className="mt-5">
-            <p className="font-mono text-xs tracking-widest text-muted uppercase">Field samples</p>
+            <p className="font-sans text-xs tracking-widest text-muted uppercase">Field samples</p>
             <ul className="mt-2 flex flex-wrap gap-2">
               {SAMPLES.map((sample) => (
                 <li key={sample}>
@@ -461,74 +403,106 @@ export function Console() {
           </div>
         </section>
 
-        <section className="min-w-0 border border-line bg-surface p-4 sm:p-5" aria-label="Tape">
+        <section className="min-w-0 border border-line bg-surface p-4 sm:p-5" aria-label="Reading">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-mono text-xs tracking-widest text-muted uppercase">Tape</h2>
-            {lead ? (
-              <span className="font-mono text-xs tracking-wide text-oxide uppercase">
-                {dialectLabel(lead)}
-              </span>
-            ) : (
-              <span className="font-mono text-xs text-muted uppercase">No line</span>
-            )}
+            <h2 className="font-title text-2xl text-fg">Reading</h2>
+            <span className="font-sans text-xs tracking-wide text-oxide uppercase">
+              {lead ? dialectLabel(lead) : "No line"}
+            </span>
           </div>
-
-          {remain > 0 ? (
-            <p className="mt-4 flex items-center justify-between gap-3 border border-oxide bg-bg px-3 py-2 font-mono text-sm text-fg">
-              <span className="inline-flex items-center gap-2">
-                <Timer className="size-4 text-oxide" aria-hidden="true" />
-                {timerLabel}
-              </span>
-              <span className="tabular-nums">{remainLabel}</span>
-            </p>
-          ) : null}
-
-          <p className="mt-4 font-mono text-xs tracking-widest text-muted uppercase">Raw</p>
-          <p className="mt-2 min-h-16 border-l-2 border-oxide bg-bg px-3 py-3 font-mono text-lg leading-snug text-pretty text-fg">
-            {interim ? (
-              <span className="text-muted">{interim}</span>
-            ) : (
-              (take?.raw || "No line yet.")
-            )}
+          <p className="mt-4 font-sans text-xs tracking-widest text-muted uppercase">Raw</p>
+          <p className={`mt-2 min-h-16 border-l-2 border-oxide bg-bg px-3 py-3 font-sans text-lg leading-snug text-pretty ${interim ? "text-muted" : "text-fg"}`}>
+            {shown}
           </p>
-
-          <p className="mt-5 font-mono text-xs tracking-widest text-muted uppercase">Signals</p>
+          <p className="mt-5 font-sans text-xs tracking-widest text-muted uppercase">Signals</p>
           {take && take.signals.length > 0 ? (
             <ul className="mt-2 divide-y divide-line border-y border-line">
               {take.signals.map((signal) => (
                 <li key={signal.display} className="py-2">
-                  <p className="font-mono text-sm text-fg">{signal.display}</p>
+                  <p className="font-sans text-sm text-fg">{signal.display}</p>
                   <p className="text-sm text-pretty text-muted">
-                    {signal.dialects.map(dialectLabel).join(" · ")} — {signal.gloss}
+                    {signal.dialects.map((id: DialectId) => dialectLabel(id)).join(" · ")} — {signal.gloss}
                   </p>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="mt-2 text-sm text-muted">
-              {take ? "No regional markers. The line still stands." : "Markers show up here. They do not replace the line."}
+              {take ? "No regional markers in the four." : "Markers show up here. They do not replace the line."}
             </p>
           )}
-
-          <p className="mt-5 font-mono text-xs tracking-widest text-muted uppercase">Intent</p>
+          <p className="mt-5 font-sans text-xs tracking-widest text-muted uppercase">Weights</p>
+          <div className="mt-2 border border-line bg-bg px-3 py-3">
+            <p className="font-sans text-sm text-fg">{EAR_ID}</p>
+            <p className="mt-1 text-sm text-pretty text-muted">
+              Not fine-tuned. {region ? "This region biases words the ear was already close to." : "No region selected. Base model."}{" "}
+              A fine-tune would change the weights and would have to keep the audio. This tab does neither. Weights may be fetched once from Hugging Face. The wasm comes from the app host.
+            </p>
+          </div>
+          <p className="mt-5 font-sans text-xs tracking-widest text-muted uppercase">Voice</p>
           <div className="mt-2 border border-line bg-bg px-3 py-3">
             <p className="text-lg text-fg">{take?.intentLabel ?? "Waiting."}</p>
             <p className="mt-1 text-sm text-pretty text-muted">
-              {take?.intentDetail ?? "Run a line. Commands execute here. The wording is left alone."}
+              {take?.intentDetail ?? "One line. The device voice reads the same words."}
             </p>
-            {executed ? (
-              <p className="mt-3 border-t border-line pt-3 font-mono text-sm text-fg">{executed}</p>
+            {gloss ? <p className="mt-3 border-t border-line pt-3 font-sans text-sm text-fg">{gloss}</p> : null}
+            {reply ? <p className="mt-3 border-t border-line pt-3 font-sans text-sm text-pretty text-fg">{reply}</p> : null}
+            {voices.length > 0 ? (
+              <label className="mt-3 block">
+                <span className="font-sans text-xs tracking-widest text-muted uppercase">Device voice</span>
+                <select
+                  value={voiceURI}
+                  onChange={(event) => setVoiceURI(event.target.value)}
+                  className="mt-1 min-h-11 w-full border border-line bg-surface px-2 font-sans text-sm text-fg"
+                >
+                  {voices.map((voice) => (
+                    <option key={voice.voiceURI} value={voice.voiceURI}>
+                      {voice.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             ) : null}
-            {take?.raw ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {take?.raw ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => readRaw(take.raw)}
+                    disabled={!ttsAvailable()}
+                    className="inline-flex min-h-11 items-center gap-2 border border-oxide px-3 font-sans text-xs tracking-widest text-oxide uppercase disabled:opacity-40"
+                  >
+                    <Volume2 className="size-4" aria-hidden="true" />
+                    Read raw
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const spoken = spokenReading(take, gloss);
+                      setReply(spoken);
+                      readRaw(spoken);
+                    }}
+                    disabled={!ttsAvailable()}
+                    className="inline-flex min-h-11 items-center gap-2 border border-fg px-3 font-sans text-xs tracking-widest text-fg uppercase disabled:opacity-40"
+                  >
+                    <Volume2 className="size-4" aria-hidden="true" />
+                    Speak reading
+                  </button>
+                </>
+              ) : null}
               <button
                 type="button"
-                onClick={() => speak(take.raw)}
-                className="mt-3 inline-flex min-h-11 items-center gap-2 font-mono text-xs tracking-widest text-oxide uppercase"
+                onClick={() => {
+                  stopText();
+                  setSpeaking(false);
+                }}
+                disabled={!speaking}
+                className="inline-flex min-h-11 items-center gap-2 border border-line px-3 font-sans text-xs tracking-widest text-fg uppercase disabled:opacity-40"
               >
-                <Volume2 className="size-4" aria-hidden="true" />
-                Read raw
+                <VolumeX className="size-4" aria-hidden="true" />
+                Stop
               </button>
-            ) : null}
+            </div>
           </div>
         </section>
       </div>
@@ -536,11 +510,8 @@ export function Console() {
       <section className="mt-6 border border-line bg-surface p-4 sm:p-5" aria-label="Book">
         <div className="flex items-center gap-2">
           <BookOpen className="size-4 text-oxide" aria-hidden="true" />
-          <h2 className="font-mono text-xs tracking-widest text-muted uppercase">Field book</h2>
+          <h2 className="font-title text-2xl text-fg">Four regions</h2>
         </div>
-        <p className="mt-2 max-w-2xl text-sm text-pretty text-muted">
-          A pocket map of American English. Tap a line to run it. Nothing here is a correction.
-        </p>
         <div className="mt-3 divide-y divide-line border-y border-line">
           {REGIONS.map((region) => {
             const hot = take?.dialects.includes(region.id) ?? false;
@@ -548,7 +519,7 @@ export function Console() {
               <details key={region.id} className="group">
                 <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-2">
                   <span className="text-fg">{region.name}</span>
-                  <span className="truncate font-mono text-xs text-muted">
+                  <span className="truncate font-sans text-xs text-muted">
                     {hot ? "In this line" : region.where}
                   </span>
                 </summary>
@@ -562,7 +533,7 @@ export function Console() {
                           onClick={() => applyLine(line.text)}
                           className="w-full min-h-11 border border-line bg-bg px-3 py-2 text-left hover:border-oxide"
                         >
-                          <span className="block font-mono text-sm text-fg">{line.text}</span>
+                          <span className="block font-sans text-sm text-fg">{line.text}</span>
                           <span className="mt-1 block text-sm text-pretty text-muted">{line.why}</span>
                         </button>
                       </li>
@@ -572,56 +543,6 @@ export function Console() {
               </details>
             );
           })}
-        </div>
-      </section>
-
-      <section className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="min-w-0 border border-line bg-surface p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-mono text-xs tracking-widest text-muted uppercase">Ledger</h2>
-            <button
-              type="button"
-              onClick={() => {
-                setLedger([]);
-                setNotes([]);
-                setExecuted("Tape clear.");
-              }}
-              className="min-h-11 font-mono text-xs tracking-widest text-muted uppercase"
-            >
-              Wipe
-            </button>
-          </div>
-          {ledger.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">Nothing held yet.</p>
-          ) : (
-            <ol className="mt-3 divide-y divide-line border-t border-line">
-              {ledger.map((item) => (
-                <li key={item.id} className="py-3">
-                  <p className="font-mono text-xs text-muted">
-                    <span className="tabular-nums">{item.at}</span>
-                    {item.dialects.length > 0 ? ` · ${item.dialects.map(dialectLabel).join(", ")}` : ""}
-                    {` · ${item.intent}`}
-                  </p>
-                  <p className="mt-1 font-mono text-sm text-pretty text-fg">{item.raw}</p>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-        <div className="min-w-0 border border-line bg-surface p-4 sm:p-5">
-          <h2 className="font-mono text-xs tracking-widest text-muted uppercase">Notes</h2>
-          <p className="mt-2 text-sm text-muted">“Remember this: …” keeps the words on this device.</p>
-          {notes.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">No notes.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {notes.map((note, index) => (
-                <li key={`${note}-${index}`} className="border-l-2 border-oxide bg-bg px-3 py-2 font-mono text-sm text-fg">
-                  {note}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       </section>
     </main>

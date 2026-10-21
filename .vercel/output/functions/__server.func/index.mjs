@@ -1,5 +1,6 @@
 globalThis.__nitro_main__ = import.meta.url;
 import { i as toEventHandler, n as HTTPError, o as NodeResponse, r as defineLazyEventHandler, t as H3Core } from "./_libs/h3+rou3+srvx.mjs";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 //#region node_modules/nitro/dist/runtime/internal/route-rules.mjs
@@ -148,6 +149,10 @@ function readGrokProjectId() {
 	const fromProcess = typeof process !== "undefined" ? process.env?.VITE_PROJECT_ID : "";
 	return String(fromProcess ?? "").trim();
 }
+function readGrokExtensionsEnabled() {
+	const fromProcess = typeof process !== "undefined" ? process.env?.VITE_GROK_EXTENSIONS : "";
+	return String(fromProcess ?? "").trim() !== "0";
+}
 function readXCreator() {
 	const fromProcess = typeof process !== "undefined" ? process.env?.X_CREATOR : "";
 	return String(fromProcess ?? "").trim();
@@ -167,6 +172,7 @@ function grokExtensionsHeadTags(projectId = readGrokProjectId()) {
 	const id = escapeHtml(projectId);
 	const tags = [];
 	if (projectId) tags.push(`<meta name="grok-project-id" content="${id}">`);
+	if (!readGrokExtensionsEnabled()) return tags;
 	tags.push(`<script src="${GROK_EXTENSIONS_SCRIPT_SRC}"${projectId ? ` data-project-id="${id}"` : ""} defer><\/script>`);
 	return tags;
 }
@@ -266,6 +272,9 @@ function grokOgHeadTags({ host = "", appName = DEFAULT_APP_NAME, site = {}, docu
 	}
 	return tags;
 }
+function stripGrokExtensionsScript(html) {
+	return String(html).replace(/<script\b[^>]*\bsrc\s*=\s*["'][^"']*\/grok-app-builder\/extensions\.js[^"']*["'][^>]*>\s*<\/script>/gi, "");
+}
 function stripShareMetaTags(html) {
 	return String(html).replace(/<meta\b[^>]*>/gi, (tag) => {
 		const attrs = [...tag.matchAll(/\b(?:property|name)\s*=\s*["']([^"']+)["']/gi)];
@@ -301,6 +310,7 @@ function injectGrokPwaHead(html, ctx = {}) {
 	const documentTitle = titleFromDocument(html);
 	const appName = resolveOgTitle(site, ctx.appName ?? "Grok App", host, documentTitle);
 	let next = stripShareMetaTags(html);
+	if (!readGrokExtensionsEnabled()) next = stripGrokExtensionsScript(next);
 	const missing = grokPwaHeadTags(appName).filter(([key]) => {
 		if (key === "manifest") return !next.includes("href=\"/__grok/manifest.webmanifest\"");
 		if (key === "apple-touch-icon") return !next.includes("href=\"/__grok/icon-180.png\"");
@@ -313,7 +323,7 @@ function injectGrokPwaHead(html, ctx = {}) {
 		documentTitle,
 		cwd
 	}).join(""));
-	if (!next.includes("/grok-app-builder/extensions.js")) missing.push(...grokExtensionsHeadTags(projectId));
+	if (readGrokExtensionsEnabled() && !next.includes("/grok-app-builder/extensions.js")) missing.push(...grokExtensionsHeadTags(projectId));
 	else if (projectId && !next.includes("name=\"grok-project-id\"")) missing.push(`<meta name="grok-project-id" content="${escapeHtml(projectId)}">`);
 	if (projectId && !next.includes("property=\"grok:app_id\"") && !next.includes("property='grok:app_id'")) missing.push(`<meta property="grok:app_id" content="${escapeHtml(projectId)}">`);
 	const creatorTags = grokXCreatorHeadTags(creator, creatorId);
@@ -437,9 +447,96 @@ async function grokPwaMiddleware(event, next) {
 	return result;
 }
 //#endregion
+//#region server/middleware/security-headers.ts
+var SCRIPT_SRC_BASE = "'self' 'wasm-unsafe-eval' 'unsafe-eval' https://grok.com";
+var CSP_REST = [
+	"default-src 'self'",
+	"style-src 'self' 'sha256-X1ZKyI5R/k+FgxIZvFoPSLGuQcTOaRhi1aTxPZb9jrI=' 'sha256-Q9Z6EIdBFpfoQ0LQm5nVKgBwo3QPf5nyfq/sSTOPXJw='",
+	"font-src 'self'",
+	"img-src 'self' data:",
+	"connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co https://*.hf.co https://app-builder-deployer.grok.com",
+	"worker-src 'self' blob:",
+	"media-src 'self' blob:",
+	"object-src 'none'",
+	"base-uri 'self'",
+	"form-action 'self'",
+	"frame-ancestors 'none'"
+];
+function csp(hashes) {
+	const script = hashes.length > 0 ? `script-src ${SCRIPT_SRC_BASE} ${hashes.join(" ")}` : `script-src ${SCRIPT_SRC_BASE}`;
+	return [
+		CSP_REST[0],
+		script,
+		...CSP_REST.slice(1)
+	].join("; ");
+}
+var STAMP_REST = {
+	"x-content-type-options": "nosniff",
+	"referrer-policy": "no-referrer",
+	"x-frame-options": "DENY",
+	"permissions-policy": "microphone=(self), camera=(), geolocation=()"
+};
+function stamp(headers, hashes) {
+	headers.set("content-security-policy", csp(hashes));
+	for (const [key, value] of Object.entries(STAMP_REST)) headers.set(key, value);
+	if (!headers.has("strict-transport-security")) headers.set("strict-transport-security", "max-age=63072000; includeSubDomains");
+}
+function inlineHashes(html) {
+	const found = html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi);
+	const hashes = [];
+	for (const match of found) {
+		const body = match[1];
+		if (!body) continue;
+		const digest = createHash("sha256").update(body, "utf8").digest("base64");
+		hashes.push(`'sha256-${digest}'`);
+	}
+	return hashes;
+}
+var SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://choose-america.grok.me/america</loc></url>
+  <url><loc>https://choose-america.grok.me/ethos</loc></url>
+  <url><loc>https://choose-america.grok.me/privacy</loc></url>
+</urlset>
+`;
+async function securityHeaders(_event, next) {
+	if (_event.url.pathname === "/sitemap.xml") {
+		const headers = new Headers({ "content-type": "application/xml; charset=utf-8" });
+		stamp(headers, []);
+		return new Response(SITEMAP, { headers });
+	}
+	const result = await next();
+	if (!(result instanceof Response)) return result;
+	if (!(result.headers.get("content-type") ?? "").includes("text/html") || !result.body) {
+		const headers = new Headers(result.headers);
+		if (_event.url.pathname.endsWith(".wasm")) headers.set("content-type", "application/wasm");
+		stamp(headers, []);
+		return new Response(result.body, {
+			status: result.status,
+			statusText: result.statusText,
+			headers
+		});
+	}
+	const bytes = new Uint8Array(await result.arrayBuffer());
+	const html = new TextDecoder().decode(bytes);
+	const headers = new Headers(result.headers);
+	stamp(headers, inlineHashes(html));
+	headers.delete("content-length");
+	return new Response(bytes, {
+		status: result.status,
+		statusText: result.statusText,
+		headers
+	});
+}
+//#endregion
 //#region #nitro/virtual/routing
 var findRouteRules = /* @__PURE__ */ (() => {
 	const $0 = [{
+		name: "headers",
+		route: "/ort/**/*.wasm",
+		handler: headers,
+		options: { "content-type": "application/wasm" }
+	}], $1 = [{
 		name: "headers",
 		route: "/assets/**",
 		handler: headers,
@@ -450,8 +547,12 @@ var findRouteRules = /* @__PURE__ */ (() => {
 		if (p.charCodeAt(p.length - 1) === 47) p = p.slice(0, -1) || "/";
 		let s = p.split("/");
 		if (s.length > 1) {
-			if (s[1] === "assets") r.unshift({
+			if (s[1] === "ort") r.unshift({
 				data: $0,
+				params: { "_": s.slice(2).join("/") }
+			});
+			else if (s[1] === "assets") r.unshift({
+				data: $1,
 				params: { "_": s.slice(2).join("/") }
 			});
 		}
@@ -471,7 +572,7 @@ var findRoute = /* @__PURE__ */ (() => {
 		};
 	});
 })();
-var globalMiddleware = [toEventHandler(grokPwaMiddleware)].filter(Boolean);
+var globalMiddleware = [toEventHandler(grokPwaMiddleware), toEventHandler(securityHeaders)].filter(Boolean);
 //#endregion
 //#region node_modules/nitro/dist/runtime/internal/error/prod.mjs
 var errorHandler = (error, event) => {

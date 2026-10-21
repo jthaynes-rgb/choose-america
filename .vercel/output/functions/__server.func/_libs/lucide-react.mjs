@@ -1,5 +1,5 @@
 import { i as __toESM } from "../_runtime.mjs";
-import { L as require_react } from "./@tanstack/react-router+[...].mjs";
+import { K as require_react } from "./@tanstack/react-router+[...].mjs";
 //#region node_modules/lucide-react/dist/esm/shared/src/utils.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 /**
@@ -128,48 +128,6 @@ var Shield = createLucideIcon("shield", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var Square = createLucideIcon("square", [["rect", {
-	width: "18",
-	height: "18",
-	x: "3",
-	y: "3",
-	rx: "2",
-	key: "afitv7"
-}]]);
-/**
-* @license lucide-react v0.510.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
-var Timer = createLucideIcon("timer", [
-	["line", {
-		x1: "10",
-		x2: "14",
-		y1: "2",
-		y2: "2",
-		key: "14vaq8"
-	}],
-	["line", {
-		x1: "12",
-		x2: "15",
-		y1: "14",
-		y2: "11",
-		key: "17fdiu"
-	}],
-	["circle", {
-		cx: "12",
-		cy: "14",
-		r: "8",
-		key: "1e1u0o"
-	}]
-]);
-/**
-* @license lucide-react v0.510.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var TriangleAlert = createLucideIcon("triangle-alert", [
 	["path", {
 		d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
@@ -204,5 +162,31 @@ var Volume2 = createLucideIcon("volume-2", [
 		key: "ijwkga"
 	}]
 ]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var VolumeX = createLucideIcon("volume-x", [
+	["path", {
+		d: "M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z",
+		key: "uqj9uw"
+	}],
+	["line", {
+		x1: "22",
+		x2: "16",
+		y1: "9",
+		y2: "15",
+		key: "1ewh16"
+	}],
+	["line", {
+		x1: "16",
+		x2: "22",
+		y1: "9",
+		y2: "15",
+		key: "5ykzw1"
+	}]
+]);
 //#endregion
-export { Shield as a, Square as i, TriangleAlert as n, Mic as o, Timer as r, BookOpen as s, Volume2 as t };
+export { Mic as a, Shield as i, Volume2 as n, BookOpen as o, TriangleAlert as r, VolumeX as t };
